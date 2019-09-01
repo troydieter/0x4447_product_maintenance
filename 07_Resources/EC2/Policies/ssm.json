@@ -1,8 +1,8 @@
 {
-	"EC2ElasticIPPolicy": {
+	"EC2PolicySSM": {
 		"Type" : "AWS::IAM::Policy",
 		"Properties" : {
-			"PolicyName": "Elastic_IP",
+			"PolicyName": "SSM",
 			"Roles" : [
 				{ "Ref": "EC2Role" }
 			],

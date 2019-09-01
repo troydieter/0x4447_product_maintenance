@@ -130,6 +130,9 @@
 				"KeyName": {
 					"Ref": "KeyNameParam"
 				},
+				"IamInstanceProfile": {
+					"Ref": "ECSInstanceProfile"
+				},
 				"UserData": {
 					"Fn::Base64": {
 						"Fn::Join": [
@@ -278,6 +281,17 @@
 				}
 			}
 		},
+		"ECSInstanceProfile": {
+			"Type": "AWS::IAM::InstanceProfile",
+			"Properties": {
+				"Path": "/",
+				"Roles": [
+					{
+						"Ref": "EC2Role"
+					}
+				]
+			}
+		},
 		"EC2Role": {
 			"Type": "AWS::IAM::Role",
 			"Properties": {
@@ -300,6 +314,7 @@
 			"Type": "AWS::EC2::SecurityGroup",
 			"Properties": {
 				"GroupDescription": "SSH Access.",
+				"GroupName": "Maintenance",
 				"VpcId": {
 					"Ref": "VPCParam"
 				},
@@ -318,13 +333,27 @@
 						"ToPort": 22,
 						"CidrIp": "0.0.0.0/0"
 					}
+				],
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "Maintenance"
+					},
+					{
+						"Key": "Author",
+						"Value": "0x4447 LLC"
+					},
+					{
+						"Key": "Info",
+						"Value": "https://0x4447.com"
+					}
 				]
 			}
 		},
-		"EC2ElasticIPPolicy": {
+		"EC2PolicySSM": {
 			"Type": "AWS::IAM::Policy",
 			"Properties": {
-				"PolicyName": "Elastic_IP",
+				"PolicyName": "SSM",
 				"Roles": [
 					{
 						"Ref": "EC2Role"
