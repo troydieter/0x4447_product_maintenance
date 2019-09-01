@@ -1,0 +1,385 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "A t2.micro EC2 instance with auto shutdown used for maintenance work.",
+	"Metadata": {
+		"AWS::CloudFormation::Interface": {
+			"ParameterGroups": [
+				{
+					"Label": {
+						"default": "Access"
+					},
+					"Parameters": [
+						"KeyNameParam"
+					]
+				},
+				{
+					"Label": {
+						"default": "VPC"
+					},
+					"Parameters": [
+						"VPCParam",
+						"VPCSubnetsParam"
+					]
+				}
+			],
+			"ParameterLabels": {
+				"KeyNameParam": {
+					"default": "EC2 Private Key"
+				},
+				"VPCParam": {
+					"default": "VPC ID"
+				},
+				"VPCSubnetsParam": {
+					"default": "VPC Public Subnet"
+				}
+			}
+		}
+	},
+	"Parameters": {
+		"KeyNameParam": {
+			"Description": "The name of the private key to be used to access the server.",
+			"Type": "AWS::EC2::KeyPair::KeyName"
+		},
+		"VPCSubnetsParam": {
+			"Description": "The ID of a Public subnet from the selected VPC.",
+			"Type": "AWS::EC2::Subnet::Id"
+		},
+		"VPCParam": {
+			"Description": "The VPC ID where the EC2 Instance should be deployed in to.",
+			"Type": "AWS::EC2::VPC::Id"
+		}
+	},
+	"Mappings": {
+		"OSIDs": {
+			"eu-west-2": {
+				"64": "ami-0d8e27447ec2c8410"
+			},
+			"ca-central-1": {
+				"64": "ami-0d4ae09ec9361d8ac"
+			},
+			"us-west-2": {
+				"64": "ami-082b5a644766e0e6f"
+			},
+			"ap-east-1": {
+				"64": "ami-570c7726"
+			},
+			"us-east-2": {
+				"64": "ami-0d8f6eb4f641ef691"
+			},
+			"us-east-1": {
+				"64": "ami-0b898040803850657"
+			},
+			"us-west-1": {
+				"64": "ami-056ee704806822732"
+			},
+			"sa-east-1": {
+				"64": "ami-058943e7d9b9cabfb"
+			},
+			"eu-west-3": {
+				"64": "ami-0adcddd3324248c4c"
+			},
+			"eu-central-1": {
+				"64": "ami-0cc293023f983ed53"
+			},
+			"eu-west-1": {
+				"64": "ami-0bbc25e23a7640b9b"
+			},
+			"ap-northeast-2": {
+				"64": "ami-095ca789e0549777d"
+			},
+			"ap-northeast-1": {
+				"64": "ami-0c3fd0f5d33134a76"
+			},
+			"ap-south-1": {
+				"64": "ami-0d2692b6acea72ee6"
+			},
+			"ap-southeast-2": {
+				"64": "ami-0dc96254d5535925f"
+			},
+			"eu-north-1": {
+				"64": "ami-3f36be41"
+			},
+			"ap-northeast-3": {
+				"64": "ami-0ee933a7f81beb045"
+			},
+			"ap-southeast-1": {
+				"64": "ami-01f7527546b557442"
+			},
+			"us-gov-west-1": {
+				"64": "ami-e9a9d388"
+			},
+			"us-gov-east-1": {
+				"64": "ami-a2d938d3"
+			}
+		}
+	},
+	"Resources": {
+		"EC2AutoScalingGroup": {
+			"Type": "AWS::AutoScaling::AutoScalingGroup",
+			"Properties": {
+				"DesiredCapacity": 1,
+				"LaunchConfigurationName": {
+					"Ref": "EC2LaunchConfiguration"
+				},
+				"MaxSize": 1,
+				"MinSize": 1,
+				"HealthCheckGracePeriod": 0,
+				"VPCZoneIdentifier": [
+					{
+						"Ref": "VPCSubnetsParam"
+					}
+				],
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "Maintenance",
+						"PropagateAtLaunch": true
+					},
+					{
+						"Key": "Description",
+						"Value": "This instance is used to access the private networks, so you can access the DB for example and perform operation directly on it.",
+						"PropagateAtLaunch": true
+					}
+				]
+			},
+			"UpdatePolicy": {
+				"AutoScalingRollingUpdate": {
+					"MaxBatchSize": 1,
+					"MinInstancesInService": 0,
+					"PauseTime": "PT15M",
+					"SuspendProcesses": [
+						"HealthCheck",
+						"ReplaceUnhealthy",
+						"AZRebalance",
+						"AlarmNotification",
+						"ScheduledActions"
+					],
+					"WaitOnResourceSignals": true
+				}
+			}
+		},
+		"ECSInstanceProfile": {
+			"Type": "AWS::IAM::InstanceProfile",
+			"Properties": {
+				"Path": "/",
+				"Roles": [
+					{
+						"Ref": "EC2Role"
+					}
+				],
+				"InstanceProfileName": {
+					"Fn::Sub": "${AWS::StackName}"
+				}
+			}
+		},
+		"EC2LaunchConfiguration": {
+			"Type": "AWS::AutoScaling::LaunchConfiguration",
+			"Properties": {
+				"IamInstanceProfile": {
+					"Ref": "ECSInstanceProfile"
+				},
+				"ImageId": {
+					"Fn::FindInMap": [
+						"OSIDs",
+						{
+							"Ref": "AWS::Region"
+						},
+						"64"
+					]
+				},
+				"InstanceType": "t2.nano",
+				"KeyName": {
+					"Ref": "KeyNameParam"
+				},
+				"SecurityGroups": [
+					{
+						"Ref": "EC2SecurityGroup"
+					}
+				],
+				"UserData": {
+					"Fn::Base64": {
+						"Fn::Join": [
+							"\n",
+							[
+								"#!/bin/bash",
+								"sudo yum -y update",
+								"sudo amazon-linux-extras install postgresql10",
+								"sudo amazon-linux-extras install vim",
+								"echo IyEvdXNyL2Jpbi9lbnYgc2gKc2V0IC1lCiMgc2V0IC14CgojIE5vdGU6IFRoaXMgImJhc2giIHNjcmlwdCB3YXMgZGVsaWJlcmF0ZWx5IHdyaXR0ZW4gdG8gYmUgYmFja3dhcmRzIGNvbXBhdGFibGUgd2l0aCBQT1NJWAojICAgICAgIHNoZWxsIChzaCkgYXMgYSByZXN1bHQgc29tZSB0aGluZ3MgKGxpa2UgaW5jcmVtZW50aW5nIHZhcmlhYmxlcywgdXNpbmcgc2luZ2xlIGBbYAojICAgICAgIHZpY2UgYFtbYCwgb3Igbm90IHVzaW5nIG5hbWVkIHBpcGVzIGZvciB3aGlsZSByZWFkIGxvb3BzKSBtYXkgbG9vayBhIGJpdCB3b25reQoKVU5JWF9VU0VSPSJlYzItdXNlciIKU0hVVERPV05fVElNRV9JTl9NSU5VVEVTPTMwCkNIRUNLX0ZSRVFfSU5fU0VDT05EUz0xNQoKaW52b2tlX21haW4oKXsKICAgIGNoZWNrX2lmX2FscmVhZHlfcnVubmluZwoKICAgIGFsbG93X3VzZXJzaHV0ZG93bgoKICAgIGNoZWNrX3ByZXJlcXMKCiAgICB3aGlsZSB0cnVlOyBkbwogICAgICAgIFBFTkRJTkdfU0hVVERPV049JChwZ3JlcCAtZiAnc3lzdGVtZC1zaHV0ZG93bmQnIHx8IHRydWUpCgogICAgICAgIGlmIGNoZWNrX3NzaF9zZXNzaW9uczsgdGhlbgogICAgICAgICAgICBjaGVja19hbmRfc3RhcnRfc2h1dGRvd24KICAgICAgICBlbHNlCiAgICAgICAgICAgIHJlbW92ZV9zaHV0ZG93bgogICAgICAgIGZpCgogICAgICAgIHNsZWVwICIkQ0hFQ0tfRlJFUV9JTl9TRUNPTkRTIgogICAgZG9uZQp9Cgp3cml0ZV9sb2coKXsKICAgIExPR0dJTkc9IiQxIgogICAgTUVTU0FHRT0iJDIiCiAgICBUSU1FU1RBTVA9IlskKGRhdGUpXSIKCiAgICBlY2hvICIkVElNRVNUQU1QIC0gJExPR0dJTkcgLSAkTUVTU0FHRSIKCiAgICBpZiBbICIkTE9HR0lORyIgPSAiRVJST1IiIF07IHRoZW4KICAgICAgICBleGl0IDE7CiAgICBmaQp9CgpjaGVja19pZl9hbHJlYWR5X3J1bm5pbmcoKXsKICAgIFBJRD0iJCQiCiAgICBQSURTPSIkKHBncmVwIC1mICIkMCIpIgogICAgT1RIRVJfUElEPSIkKGVjaG8gIiRQSURTIiB8IGdyZXAgLXYgIiRQSUQiIHwgZ3JlcCAtdiAiJFBQSUQiIHx8IHRydWUpIgoKICAgIGlmIHRlc3QgLW4gIiRPVEhFUl9QSUQiOyB0aGVuCiAgICAgICAgd3JpdGVfbG9nICJJTkZPIiAiVGhpcyBzY3JpcHQgaXMgYWxyZWFkeSBydW5uaW5nIHVuZGVyICRPVEhFUl9QSUQiCiAgICAgICAgZXhpdAogICAgZmkKfQoKY2hlY2tfcHJlcmVxcygpewogICAgd3JpdGVfbG9nICJJTkZPIiAiQ2hlY2tpbmcgcHJlcmVxcy4iCgogICAgaWYgISBjb21tYW5kIC12IHBncmVwID4gL2Rldi9udWxsOyB0aGVuCiAgICAgICAgd3JpdGVfbG9nICJJTkZPIiAiUmVmcmVzaGluZyBQYWNrYWdlIGxpc3QgYW5kIGluc3RhbGxpbmcgcGdyZXAgc2luY2UgaXQgaXMgbmVlZGVkIG9uIHRoaXMgc3lzdGVtLiIKCiAgICAgICAgeXVtIGNoZWNrLXVwZGF0ZSAxPiAvZGV2L251bGwgIHx8CiAgICAgICAgICAgIHdyaXRlX2xvZyAiRVJST1IiICJVbmFibGUgdG8gcmVmcmVzaCBwYWNrYWdlIGxpc3RzLiIKCiAgICAgICAgeXVtIGluc3RhbGwgLXkgcHJvY3BzLW5nIDE+IC9kZXYvbnVsbCB8fAogICAgICAgICAgICB3cml0ZV9sb2cgIkVSUk9SIiAiVW5hYmxlIHRvIGluc3RhbGwgcHJvY3BzLW5nLiIKICAgIGZpCn0KCmFsbG93X3VzZXJzaHV0ZG93bigpewogICAgd3JpdGVfbG9nICJJTkZPIiAiRW5zdXJpbmcgJHtVTklYX1VTRVJ9IGhhcyBwZXJtaXNzaW9ucyB0byBpbnZva2UgYSBzaHV0ZG93bi4iCgogICAgaWYgISBncmVwIC1QICIke1VOSVhfVVNFUn0uKnNodXRkb3duIiAvZXRjL3N1ZG9lcnMgPiAvZGV2L251bGw7IHRoZW4KICAgICAgICB3cml0ZV9sb2cgIklORk8iICJBZGRpbmcgJHtVTklYX1VTRVJ9IHRvIC9ldGMvc3Vkb2VycyIKCiAgICAgICAgZWNobyAiJFVOSVhfVVNFUiAgICBBTEw9KEFMTCkgTk9QQVNTV0Q6IC91c3Ivc2Jpbi9wb3dlcm9mZiwgL3Vzci9zYmluL3JlYm9vdCwgL3Vzci9zYmluL3NodXRkb3duIiA+PiAvZXRjL3N1ZG9lcnMgfHwgewogICAgICAgICAgICB3cml0ZV9sb2cgIldBUk4iICIke1VTRVJ9IGlzIHVuYWJsZSB0byB3cml0ZSB0byAvZXRjL3N1ZG9lcnMgb24gYmVoYWxmIG9mICR7VU5JWF9VU0VSfS4iCiAgICAgICAgICAgIHdyaXRlX2xvZyAiSU5GTyIgIkFzc3VtaW5nIHRoYXQgdGhpcyB1c2VyIGFscmVhZHkgaGFzIHBlcm1pc3Npb25zIHRvIGluaXRpYXRlIGEgc2h1dGRvd24uIgogICAgICAgIH0KICAgIGZpCn0KCmNoZWNrX3NzaF9zZXNzaW9ucygpewogICAgd3JpdGVfbG9nICJJTkZPIiAiQ2hlY2tpbmcgY3VycmVudCBTU0ggc2Vzc2lvbnMuIgoKICAgIGV4cG9ydCBTRVNTSU9OX1RJTUVTX0ZJTEU9L3RtcC9zZXNzaW9uX3RpbWVzCgogICAgaWYgISB0ZXN0IC1mICIkU0VTU0lPTl9USU1FU19GSUxFIjsgdGhlbgogICAgICAgIHdyaXRlX2xvZyAiSU5GTyIgIkNyZWF0aW5nICR7U0VTU0lPTl9USU1FU19GSUxFfSIKCiAgICAgICAgdG91Y2ggIiRTRVNTSU9OX1RJTUVTX0ZJTEUiCgogICAgICAgIHdyaXRlX2xvZyAiSU5GTyIgIkVuc3VyaW5nIHRoYXQgJHtVTklYX1VTRVJ9IGhhcyBwZXJtcyB0byB3cml0ZSB0byAke1NFU1NJT05fVElNRVNfRklMRX0iCgogICAgICAgIGNobW9kIDY2MCAiJHtTRVNTSU9OX1RJTUVTX0ZJTEV9IgogICAgICAgIGNob3duICIke1VOSVhfVVNFUn06JHtVTklYX1VTRVJ9IiAiJHtTRVNTSU9OX1RJTUVTX0ZJTEV9IgogICAgZmkKCiAgICB3IHwgYXdrICcvcHRzLyB7cHJpbnQgJDV9JyA+ICIke1NFU1NJT05fVElNRVNfRklMRX0iCgogICAgSU5BQ1RJVkVfU0VTU0lPTlM9MAoKICAgIHdoaWxlIHJlYWQgLXIgU0VTU0lPTjsgZG8KICAgICAgICAjIGNoZWNrIHRvIHNlZSBpZiBzZXNzaW9uIGlzIGlkbGUgZm9yIGxvbmdlciB0aGFuIDYwcwogICAgICAgIGlmIGVjaG8gIiRTRVNTSU9OIiB8IGdyZXAgLVAgJ1xkK1w6XGQrJyA+IC9kZXYvbnVsbDsgdGhlbgogICAgICAgICAgICBJTkFDVElWRV9TRVNTSU9OUz0kKChJTkFDVElWRV9TRVNTSU9OUysxKSkKICAgICAgICBmaQogICAgZG9uZSA8ICIkU0VTU0lPTl9USU1FU19GSUxFIgoKICAgIFNFU1NJT05fQ09VTlQ9IiQod2MgLWwgIiR7U0VTU0lPTl9USU1FU19GSUxFfSIgfCBhd2sgJ3twcmludCAkMX0nKSIKCiAgICB3cml0ZV9sb2cgIklORk8iICJJbmFjdGl2ZSBzZXNzaW9uczogJElOQUNUSVZFX1NFU1NJT05TIgogICAgd3JpdGVfbG9nICJJTkZPIiAiVG90YWwgc2Vzc2lvbnM6ICRTRVNTSU9OX0NPVU5UIgoKICAgIGlmIFsgIiRJTkFDVElWRV9TRVNTSU9OUyIgPSAiJFNFU1NJT05fQ09VTlQiIF07IHRoZW4KICAgICAgICB3cml0ZV9sb2cgIklORk8iICJBbGwgc2Vzc2lvbnMgYXJlIGluYWN0aXZlLiIKICAgICAgICByZXR1cm4gMAogICAgZWxpZiBbICIkU0VTU0lPTl9DT1VOVCIgPSAiMCIgXTsgdGhlbgogICAgICAgIHdyaXRlX2xvZyAiSU5GTyIgIlRoZXJlIGFyZSBubyBzZXNzaW9ucy4iCiAgICAgICAgcmV0dXJuIDAKICAgIGZpCgogICAgd3JpdGVfbG9nICJJTkZPIiAiRGV0ZXJtaW5lZCB0aGF0IHRoZXJlIGlzIG5vIGFjdGlvbiB0byB0YWtlLCB3aWxsIGNoZWNrIGFnYWluIGluICR7Q0hFQ0tfRlJFUV9JTl9TRUNPTkRTfSBzZWNvbmRzLiIKCiAgICByZXR1cm4gMQp9CgpjaGVja19hbmRfc3RhcnRfc2h1dGRvd24oKXsKICAgIHdyaXRlX2xvZyAiSU5GTyIgIkRldGVybWluZWQgdGhhdCBhIHNodXRkb3duIGlzIG5lZWRlZC4iCgogICAgaWYgdGVzdCAteiAiJFBFTkRJTkdfU0hVVERPV04iOyB0aGVuCiAgICAgICAgd3JpdGVfbG9nICJJTkZPIiAiU3RhcnRpbmcgc2h1dGRvd24gc2luY2UgdGhlcmUgaXMgbm90IG9uZSBzY2hlZHVsZWQuIgogICAgICAgIHN1ZG8gc2h1dGRvd24gIiske1NIVVRET1dOX1RJTUVfSU5fTUlOVVRFU30iCgogICAgICAgIFBFTkRJTkdfU0hVVERPV049JChwZ3JlcCAtZiAnc3lzdGVtZC1zaHV0ZG93bmQnIHx8IHRydWUpCiAgICBlbHNlCiAgICAgICAgd3JpdGVfbG9nICJJTkZPIiAiRGV0ZXJtaW5lZCB0aGF0IHRoZXJlIGlzIGFscmVhZHkgYSBzaHV0ZG93biBzY2hlZHVsZWQgKFBJRDogJHtQRU5ESU5HX1NIVVRET1dOfSkuIgogICAgZmkKfQoKcmVtb3ZlX3NodXRkb3duKCl7CiAgICBpZiB0ZXN0IC1uICIkUEVORElOR19TSFVURE9XTiI7IHRoZW4KICAgICAgICB3cml0ZV9sb2cgIklORk8iICJSZW1vdmluZyBwZW5kaW5nIHNodXRkb3duIChQSUQ6ICR7UEVORElOR19TSFVURE9XTn0pLiIKICAgICAgICBzdWRvIHNodXRkb3duIC1jCiAgICBmaQp9CgpjbGVhbl9leGl0KCl7CiAgICBlY2hvICMgdGhpcyBpcyBzbyBeQyBpcyBub3QgbWVzc2lnbiB3aXRoIG15IE9DRAogICAgd3JpdGVfbG9nICJJTkZPIiAiU0lHSU5UIGRldGVjdGVkLiBFeGl0aW5nIGdyYWNlZnVsbHkuIgoKICAgIHJlbW92ZV9zaHV0ZG93bgp9Cgp0cmFwIGNsZWFuX2V4aXQgSU5UCgppbnZva2VfbWFpbgo= | base64 --decode | sudo tee /home/ec2-user/idle_shutdown_aws.sh",
+								"chmod +x /home/ec2-user/idle_shutdown_aws.sh",
+								{
+									"Fn::Sub": "sudo /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource EC2LaunchConfiguration"
+								},
+								{
+									"Fn::Sub": "sudo /opt/aws/bin/cfn-signal -s true --region ${AWS::Region} --stack ${AWS::StackName} --resource EC2AutoScalingGroup"
+								}
+							]
+						]
+					}
+				}
+			},
+			"Metadata": {
+				"AWS::CloudFormation::Init": {
+					"config": {
+						"packages": {
+							"yum": {
+								"nmap": [],
+								"mc": [],
+								"nano": [],
+								"git": []
+							}
+						},
+						"files": {
+							"/etc/cfn/cfn-hup.conf": {
+								"mode": "000644",
+								"owner": "root",
+								"group": "root",
+								"content": {
+									"Fn::Join": [
+										"\n",
+										[
+											"[main]",
+											{
+												"Fn::Sub": "stack=${AWS::StackId}"
+											},
+											{
+												"Fn::Sub": "region=${AWS::Region}"
+											}
+										]
+									]
+								}
+							},
+							"/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+								"content": {
+									"Fn::Join": [
+										"\n",
+										[
+											"[cfn-auto-reloader-hook]",
+											"triggers=post.update",
+											"path=Resources.ECSLaunchConfiguration.Metadata.AWS::CloudFormation::Init",
+											{
+												"Fn::Sub": "action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSLaunchConfiguration"
+											}
+										]
+									]
+								}
+							},
+							"/etc/systemd/system/idle_shutdown_aws.service": {
+								"content": {
+									"Fn::Join": [
+										"\n",
+										[
+											"[Unit]",
+											"Description=Idle Instance Detection",
+											"Documentation=https://0x4447.com",
+											"After=network.target",
+											"[Service]",
+											"Type=simple",
+											"User=root",
+											"Group=root",
+											"ExecStart=/home/ec2-user/idle_shutdown_aws.sh",
+											"StandardOutput=syslog",
+											"StandardError=syslog",
+											"SyslogIdentifier=idle_shutdown_aws",
+											"Restart=on-failure",
+											"RestartSec=3",
+											"KillMode=process",
+											"ExecReload=/bin/kill -HUP $MAINPID",
+											"[Install]",
+											"WantedBy=multi-user.target"
+										]
+									]
+								}
+							}
+						},
+						"services": {
+							"sysvinit": {
+								"cfn-hup": {
+									"enabled": true,
+									"ensureRunning": true,
+									"files": [
+										"/etc/cfn/cfn-hup.conf",
+										"/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+									]
+								},
+								"idle_shutdown_aws": {
+									"enabled": true,
+									"ensureRunning": true
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"EC2Role": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"RoleName": "maintenance",
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"Service": "ec2.amazonaws.com"
+							},
+							"Action": "sts:AssumeRole"
+						}
+					]
+				}
+			}
+		},
+		"EC2SecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "SSH Access.",
+				"VpcId": {
+					"Ref": "VPCParam"
+				},
+				"SecurityGroupEgress": [
+					{
+						"IpProtocol": "-1",
+						"FromPort": -1,
+						"ToPort": -1,
+						"CidrIp": "0.0.0.0/0"
+					}
+				],
+				"SecurityGroupIngress": [
+					{
+						"IpProtocol": "tcp",
+						"FromPort": 22,
+						"ToPort": 22,
+						"CidrIp": "0.0.0.0/0"
+					}
+				]
+			}
+		},
+		"EC2ElasticIPPolicy": {
+			"Type": "AWS::IAM::Policy",
+			"Properties": {
+				"PolicyName": "Elastic_IP",
+				"Roles": [
+					{
+						"Ref": "EC2Role"
+					}
+				],
+				"PolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Action": [
+								"ssm:UpdateInstanceInformation",
+								"ssm:ListInstanceAssociations"
+							],
+							"Resource": {
+								"Fn::Sub": "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+							}
+						}
+					]
+				}
+			}
+		}
+	}
+}

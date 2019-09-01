@@ -1,0 +1,1 @@
+A t2.micro EC2 instance with auto shutdown used for maintenance work.
