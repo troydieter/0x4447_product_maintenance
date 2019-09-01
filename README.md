@@ -30,9 +30,13 @@ To deploy this stack, all you need to do is click the button to the left and fol
 
 ![Maintenance Diagram](https://raw.githubusercontent.com/0x4447/0x4447_product_maintenance/assets/diagram.png)
 
-The stack takes advantage of just EC2.
+The stack takes advantage of just EC2, and other minor services.
 
 - 1x EC2 Instance with auto shut down.
+- 1x Security group.
+- 1x Instance Profile.
+- 1x Role.
+- 1x Policy.
 
 # Pricing
 
