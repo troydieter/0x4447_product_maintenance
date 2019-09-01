@@ -19,9 +19,9 @@
 
                 "chmod +x /home/ec2-user/idle_shutdown_aws.sh",
 
-                { "Fn::Sub": "sudo /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource EC2LaunchConfiguration" },
+                { "Fn::Sub": "sudo /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource EC2Instance" },
 
-                { "Fn::Sub": "sudo /opt/aws/bin/cfn-signal -s true --region ${AWS::Region} --stack ${AWS::StackName} --resource EC2AutoScalingGroup" }
+                { "Fn::Sub": "sudo /opt/aws/bin/cfn-signal -s true --region ${AWS::Region} --stack ${AWS::StackName} --resource EC2Instance" }
 
             ]]}},
             "NetworkInterfaces": [ {
@@ -75,8 +75,8 @@
                             "content" : { "Fn::Join" : ["\n", [
                                 "[cfn-auto-reloader-hook]",
                                 "triggers=post.update",
-                                "path=Resources.ECSLaunchConfiguration.Metadata.AWS::CloudFormation::Init",
-                                { "Fn::Sub": "action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSLaunchConfiguration" }
+                                "path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init",
+                                { "Fn::Sub": "action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource EC2Instance" }
                             ]]}
                         },
                         "/etc/systemd/system/idle_shutdown_aws.service" : {
