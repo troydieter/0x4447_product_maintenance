@@ -225,9 +225,9 @@
 										[
 											"[cfn-auto-reloader-hook]",
 											"triggers=post.update",
-											"path=Resources.ECSLaunchConfiguration.Metadata.AWS::CloudFormation::Init",
+											"path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init",
 											{
-												"Fn::Sub": "action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSLaunchConfiguration"
+												"Fn::Sub": "action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource EC2Instance"
 											}
 										]
 									]
@@ -295,7 +295,9 @@
 		"EC2Role": {
 			"Type": "AWS::IAM::Role",
 			"Properties": {
-				"RoleName": "maintenance",
+				"RoleName": {
+					"Fn::Sub": "maintenance-${AWS::StackName}"
+				},
 				"AssumeRolePolicyDocument": {
 					"Version": "2012-10-17",
 					"Statement": [

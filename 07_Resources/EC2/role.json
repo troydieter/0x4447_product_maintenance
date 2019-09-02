@@ -2,7 +2,7 @@
 	"EC2Role": {
 		"Type": "AWS::IAM::Role",
 		"Properties": {
-			"RoleName": "maintenance",
+			"RoleName": { "Fn::Sub": "maintenance-${AWS::StackName}" },
 			"AssumeRolePolicyDocument": {
 				"Version": "2012-10-17",
 				"Statement": [
