@@ -9,6 +9,7 @@ set -e
 UNIX_USER="ec2-user"
 SHUTDOWN_TIME_IN_MINUTES=30
 CHECK_FREQ_IN_SECONDS=15
+LOG_LEVEL='INFO'
 
 invoke_main(){
     check_if_already_running
@@ -35,10 +36,64 @@ write_log(){
     MESSAGE="$2"
     TIMESTAMP="[$(date)]"
 
+    case "$LOG_LEVEL" in
+        DEBUG)
+            DEBUG=true
+            INFO=true
+            WARN=true
+            ERROR=true
+            ;;
+        INFO)
+            DEBUG=false
+            INFO=true
+            WARN=true
+            ERROR=true
+            ;;
+        WARN)
+            DEBUG=false
+            INFO=false
+            WARN=true
+            ERROR=true
+            ;;
+        ERROR)
+            DEBUG=false
+            INFO=false
+            WARN=false
+            ERROR=true
+            ;;
+        *)
+            echo "Invalad LOG_LEVEL - $LOG_LEVEL"
+            exit 2
+            ;;
+    esac
+
+    case "$LOGGING" in
+        DEBUG)
+            "$DEBUG" || return 0
+            EXIT_CODE=0
+            ;;
+        INFO)
+            "$INFO" || return 0
+            EXIT_CODE=0
+            ;;
+        WARN)
+            "$WARN" || return 0
+            EXIT_CODE=0
+            ;;
+        ERROR)
+            "$ERROR" || return 0
+            EXIT_CODE=2
+            ;;
+        *)
+            echo "Invalad LOG_LEVEL - $LOGGING"
+            EXIT_CODE=3
+            ;;
+    esac
+
     echo "$TIMESTAMP - $LOGGING - $MESSAGE"
 
-    if [ "$LOGGING" = "ERROR" ]; then
-        exit 1;
+    if [ "$EXIT_CODE" != "0" ]; then
+        exit "$EXIT_CODE";
     fi
 }
 
@@ -54,10 +109,10 @@ check_if_already_running(){
 }
 
 check_prereqs(){
-    write_log "INFO" "Checking prereqs."
+    write_log "DEBUG" "Checking prereqs."
 
     if ! command -v pgrep > /dev/null; then
-        write_log "INFO" "Refreshing Package list and installing pgrep since it is needed on this system."
+        write_log "DEBUG" "Refreshing Package list and installing pgrep since it is needed on this system."
 
         yum check-update 1> /dev/null  ||
             write_log "ERROR" "Unable to refresh package lists."
@@ -81,7 +136,7 @@ allow_usershutdown(){
 }
 
 check_ssh_sessions(){
-    write_log "INFO" "Checking current SSH sessions."
+    write_log "DEBUG" "Checking current SSH sessions."
 
     export SESSION_TIMES_FILE=/tmp/session_times
 
@@ -90,7 +145,7 @@ check_ssh_sessions(){
 
         touch "$SESSION_TIMES_FILE"
 
-        write_log "INFO" "Ensuring that ${UNIX_USER} has perms to write to ${SESSION_TIMES_FILE}"
+        write_log "DEBUG" "Ensuring that ${UNIX_USER} has perms to write to ${SESSION_TIMES_FILE}"
 
         chmod 660 "${SESSION_TIMES_FILE}"
         chown "${UNIX_USER}:${UNIX_USER}" "${SESSION_TIMES_FILE}"
@@ -109,39 +164,41 @@ check_ssh_sessions(){
 
     SESSION_COUNT="$(wc -l "${SESSION_TIMES_FILE}" | awk '{print $1}')"
 
-    write_log "INFO" "Inactive sessions: $INACTIVE_SESSIONS"
-    write_log "INFO" "Total sessions: $SESSION_COUNT"
+    write_log "DEBUG" "Inactive sessions: $INACTIVE_SESSIONS"
+    write_log "DEBUG" "Total sessions: $SESSION_COUNT"
 
     if [ "$INACTIVE_SESSIONS" = "$SESSION_COUNT" ]; then
-        write_log "INFO" "All sessions are inactive."
+        write_log "DEBUG" "All sessions are inactive."
         return 0
     elif [ "$SESSION_COUNT" = "0" ]; then
-        write_log "INFO" "There are no sessions."
+        write_log "DEBUG" "There are no sessions."
         return 0
     fi
 
-    write_log "INFO" "Determined that there is no action to take, will check again in ${CHECK_FREQ_IN_SECONDS} seconds."
+    write_log "INFO" "Total sessions ($SESSION_COUNT). Inactive ($INACTIVE_SESSIONS). Next check in ${CHECK_FREQ_IN_SECONDS} sec."
 
     return 1
 }
 
 check_and_start_shutdown(){
-    write_log "INFO" "Determined that a shutdown is needed."
+    write_log "DEBUG" "Determined that a shutdown is needed."
 
     if test -z "$PENDING_SHUTDOWN"; then
-        write_log "INFO" "Starting shutdown since there is not one scheduled."
+        write_log "INFO" "Total sessions ($SESSION_COUNT). Inactive ($INACTIVE_SESSIONS). Set shutdown."
         sudo shutdown "+${SHUTDOWN_TIME_IN_MINUTES}"
 
         PENDING_SHUTDOWN=$(pgrep -f 'systemd-shutdownd' || true)
     else
-        write_log "INFO" "Determined that there is already a shutdown scheduled (PID: ${PENDING_SHUTDOWN})."
+        write_log "DEBUG" "Pending shutdown (PID: ${PENDING_SHUTDOWN})."
+        write_log "INFO" "Total sessions ($SESSION_COUNT). Inactive ($INACTIVE_SESSIONS). Shutdown already enabled, skipping."
     fi
 }
 
 remove_shutdown(){
     if test -n "$PENDING_SHUTDOWN"; then
-        write_log "INFO" "Removing pending shutdown (PID: ${PENDING_SHUTDOWN})."
-        sudo shutdown -c
+        write_log "DEBUG" "Removing pending shutdown (PID: ${PENDING_SHUTDOWN})."
+        write_log "INFO" "Total sessions ($SESSION_COUNT). Inactive ($INACTIVE_SESSIONS). Removing shutdown."
+        sudo shutdown -c --no-wall
     fi
 }
 
