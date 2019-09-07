@@ -15,7 +15,7 @@ This command will convert the content of the Bash script in to base64 with no co
 
 ```
 ] cat idle_shutdown_aws.sh | base64 -w 0
-``
+```
 
 ## Requirements
 
