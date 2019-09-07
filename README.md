@@ -1,17 +1,23 @@
 # 🧢 Maintenance
 
-This stack will deploy a t2.nano EC2 instance with auto shutdown - useful for maintenance work in AWS.
+This stack will deploy a t2.nano EC2 instance running Amazon Linux 2 with auto shutdown - useful for maintenance work in AWS.
 
-On a regular basis we have to do maintenance work in clients AWS accounts, for example:
+On a regular basis we have to do maintenance work for AWS clients accounts, for example:
 
 - Do a DB migration.
 - Move objects form one S3 Bucket to another.
 - Check different volumes types.
 - etc.
 
-We got tired of creating an instance and waiting for it to boot, installing some default tools, and then remember to either shut it down, or termiante it.
+We got tired of creating an instance and waiting for it to boot, installing some default tools, and then remember to either shut it down, or terminate it.
 
-This stack solves this problem by making a EC2 Instance, installing all the tools that we need at boot time, and then automatically shut it down after 30 minutes if the ec2-user session is idle. This way we always have access to our Maintenance server, and we don't have worry that our clients have to pay for unused resources.
+This stack solves this problem by making a EC2 Instance, installing all the tools that we need at boot time, and then automatically shut it down after 30 minutes of ssh session inactivity. This way we always have access to our Maintenance server, and we don't have worry that our clients having to pay for unused resources.
+
+Our custom Bash script checks the ec2-user session, and when it detects inactivity it will set a `shutdown` 30 min in the future. If activity is detected in the session the `shutdown` is silently removed. This process repeats itself every 15 sec. You can check the `/var/log/messages` to see what is exactly happening.
+
+# Make it your own
+
+This stack is straght forward to clone and edit the CloudFormation file to modify to your needs. The EC2 configuration can be found [here](https://github.com/0x4447/0x4447_product_maintenance/blob/master/07_Resources/EC2/_index.json). You can edit either the `UserData` or `Cloud-Init` to install extra things that you need for your work.
 
 # DISCLAIMER!
 
