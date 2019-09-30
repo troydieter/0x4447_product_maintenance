@@ -2,7 +2,7 @@
     "EC2Instance": {
         "Type" : "AWS::EC2::Instance",
         "Properties" : {
-            "InstanceType" : "t2.nano",
+            "InstanceType" : "t3.nano",
             "ImageId": { "Fn::FindInMap": ["OSIDs", {"Ref": "AWS::Region"}, "64"] },
             "KeyName" : { "Ref": "KeyNameParam"},
             "IamInstanceProfile": { "Ref": "ECSInstanceProfile" },
