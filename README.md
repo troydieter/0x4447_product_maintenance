@@ -31,7 +31,7 @@ The EC2 Instance will get the following extra software:
 
 # Make it your own
 
-This stack is straight forward to clone and edit the CloudFormation file to modify to your needs. The EC2 configuration can be found [here](https://github.com/0x4447/0x4447_product_maintenance/blob/master/07_Resources/EC2/_index.json). You can edit either the `UserData` or `Cloud-Init` to install extra things that you need for your work.
+This stack is straight forward to clone and edit the CloudFormation file to modify to your needs. The EC2 configuration can be found [here](https://github.com/0x4447/0x4447_product_maintenance/tree/bash_script). You can edit either the `UserData` or `Cloud-Init` to install extra things that you need for your work.
 
 # DISCLAIMER!
 
