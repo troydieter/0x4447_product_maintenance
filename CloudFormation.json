@@ -1,6 +1,6 @@
 {
 	"AWSTemplateFormatVersion": "2010-09-09",
-	"Description": "A t2.nano EC2 instance with auto shutdown used for maintenance work.",
+	"Description": "A t3.nano EC2 instance with auto shutdown used for maintenance work.",
 	"Metadata": {
 		"AWS::CloudFormation::Interface": {
 			"ParameterGroups": [
@@ -117,7 +117,7 @@
 		"EC2Instance": {
 			"Type": "AWS::EC2::Instance",
 			"Properties": {
-				"InstanceType": "t2.nano",
+				"InstanceType": "t3.nano",
 				"ImageId": {
 					"Fn::FindInMap": [
 						"OSIDs",
