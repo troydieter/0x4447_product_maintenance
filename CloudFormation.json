@@ -175,7 +175,7 @@
 					},
 					{
 						"Key": "Description",
-						"Value": "A Instance to perform Maintenance work in the account with auto shutdown after 30min."
+						"Value": "An instance to perform maintenance work in the account with auto shutdown after 30min."
 					},
 					{
 						"Key": "Author",
