@@ -1,23 +1,37 @@
 # 🧢 Maintenance
 
-This stack will deploy a t2.nano EC2 instance running Amazon Linux 2 with auto shutdown - useful for maintenance work in AWS.
+This stack will deploy a t3.nano EC2 instance running Amazon Linux 2 with auto shutdown - useful for maintenance work in AWS.
 
 On a regular basis we have to do maintenance work for AWS clients accounts, for example:
 
-- Do a DB migration.
+- Do DB migrations.
 - Move objects form one S3 Bucket to another.
 - Check different volumes types.
+- Access private networks.
+- Ping resources to see if they are reachable.
 - etc.
 
-We got tired of creating an instance and waiting for it to boot, installing some default tools, and then remember to either shut it down, or terminate it.
+We got tired of creating an instance, waiting for it to boot, installing some default tools, and then remember to either shut it down, or terminate it.
 
-This stack solves this problem by making a EC2 Instance, installing all the tools that we need at boot time, and then automatically shut it down after 30 minutes of ssh session inactivity. This way we always have access to our Maintenance server, and we don't have worry that our clients having to pay for unused resources.
+This stack solves this problem by making a EC2 Instance, installing all the tools that we need at boot time, and then automatically shut down after 30 minutes by detecting if the SSH session is inactive. This way we don't have worry that our clients will be charged for an unused resource.
 
-Our custom Bash script checks the ec2-user session, and when it detects inactivity it will set a `shutdown` 30 min in the future. If activity is detected in the session the `shutdown` is silently removed. This process repeats itself every 15 sec. You can check the `/var/log/messages` to see what is exactly happening.
+The auto shout down works thanks to a custom Bash script which checks the ec2-user session every 15 sec, and when it detects inactivity it will set a `shutdown` of 30 min in the future. Depending on the terminal app that you are using, you should get a Ring Bell letting you know you have 30 min left before the instance will be stoped. Giving you a chance to hit enter in the terminal to silently remove the `shutdown`. You can check the `/var/log/messages` to see what is exactly happening.
+
+# Additional Software
+
+The EC2 Instance will get the following extra software:
+
+- Postgres
+- MariaDB
+- Nmap
+- MC
+- Nano
+- Git
+- Vim
 
 # Make it your own
 
-This stack is straght forward to clone and edit the CloudFormation file to modify to your needs. The EC2 configuration can be found [here](https://github.com/0x4447/0x4447_product_maintenance/blob/master/07_Resources/EC2/_index.json). You can edit either the `UserData` or `Cloud-Init` to install extra things that you need for your work.
+This stack is straight forward to clone and edit the CloudFormation file to modify to your needs. The EC2 configuration can be found [here](https://github.com/0x4447/0x4447_product_maintenance/blob/master/07_Resources/EC2/_index.json). You can edit either the `UserData` or `Cloud-Init` to install extra things that you need for your work.
 
 # DISCLAIMER!
 
@@ -46,7 +60,7 @@ The stack takes advantage of just EC2, and other minor services.
 
 # Pricing
 
-Standard t2.nano Pricing applies when the instance is ON.
+Standard t3.nano On-Demand pricing applies when the instance is ON.
 
 # How to work with this project
 
